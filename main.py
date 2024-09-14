@@ -19,6 +19,7 @@ app = FastAPI()
 
 class PredictionResponse(BaseModel):
     class_name: str
+    probability: float
 
 @app.get("/")
 async def root():
@@ -44,10 +45,16 @@ async def predict(file: UploadFile = File(...)):
     interpreter.set_tensor(input_details[0]['index'], image)
     interpreter.invoke()
     predictions = interpreter.get_tensor(output_details[0]['index'])
-    predicted_class_index = np.argmax(predictions, axis=1)
-    predicted_class_name = class_names[predicted_class_index[0]]
+    
+    # Apply softmax to get probabilities
+    probabilities = tf.nn.softmax(predictions[0]).numpy()
+    
+    # Get the predicted class and probability
+    predicted_class_index = np.argmax(probabilities)
+    predicted_class_name = class_names[predicted_class_index]
+    predicted_probability = probabilities[predicted_class_index]
 
-    return PredictionResponse(class_name=predicted_class_name)
+    return PredictionResponse(class_name=predicted_class_name, probability=predicted_probability)
 
 if __name__ == "__main__":
     import uvicorn
